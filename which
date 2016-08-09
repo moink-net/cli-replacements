@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+# Copyright (c) 2016 Andrew Moll 
+# 
+# This program is free software: you can redistribute it and/or modify  
+# it under the terms of the GNU General Public License as published by  
+# the Free Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but 
+# WITHOUT ANY WARRANTY; without even the implied warranty of 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License 
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+OPTION_ALL=false
+OPTION_SILENT=false
+PROGRAMS=()
+PATHS=
+EXIT_STATUS=0
+
+function usage {
+    echo "usage: which [--all|-a] [--silent|-s] program ..." 1>&2
+}
+
+function findexec {
+    local PROGRAM="$1"
+
+    RESULTS="$(find -L $PATHS -mindepth 1 -maxdepth 1 -name $PROGRAM 2>/dev/null)"
+
+    if [ -z "$RESULTS" ]; then
+        EXIT_STATUS=1
+        return
+    fi
+
+    if $OPTION_SILENT; then
+        return
+    fi
+
+    if $OPTION_ALL; then
+        echo "$RESULTS"
+    else
+        echo "$RESULTS" | head -n1
+    fi
+}
+
+while test -n "$1"; do
+    case "$1" in
+        "--all"|"-a")
+            OPTION_ALL=true
+            shift
+            ;;
+        "--silent"|"-s")
+            OPTION_SILENT=true
+            shift
+            ;;
+        *)
+            PROGRAMS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# usage if no args
+if [ -z "${PROGRAMS}" ]; then
+    usage
+    exit -1
+fi
+
+# if PATH is not set
+if [ -z "${PATH}" ]; then
+    echo "error: PATH is not set" 1>&2
+    exit -1
+fi
+
+# build PATHS array for places to look
+IFS=':' read -ra PATHS_ARRAY <<< "$PATH"
+for PATH_ELEMENT in "${PATHS_ARRAY[@]}"; do
+    PATHS="$PATHS $PATH_ELEMENT"
+done
+
+for PROGRAM in "${PROGRAMS[@]}"; do
+    findexec "$PROGRAM"
+done
+
+exit $EXIT_STATUS
